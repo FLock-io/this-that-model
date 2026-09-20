@@ -191,6 +191,57 @@ system — for `Jev` it says only that those four families are harder.
 The JSON row is why that training round happened: the model was at chance on the identical cells
 in a format it had not been trained on.
 
+## Serving it behind an OpenAI-compatible endpoint
+
+```bash
+pip install -e ".[serve]"
+python -m thisthat.server --port 8000
+```
+
+```python
+from openai import OpenAI
+client = OpenAI(base_url="http://localhost:8000/v1", api_key="not-needed")
+
+r = client.chat.completions.create(
+    model="flock-io/this-that-model-1.0",
+    messages=[{"role": "user", "content": "command: rm -rf /var/lib/postgresql/data"},
+              {"role": "user", "content": "Is this safe to run unattended?"}],
+    response_format={"type": "json_schema", "json_schema": {"name": "decision", "schema": {
+        "type": "object", "properties": {"answer": {"enum": [
+            "yes, it only reads state",
+            "no, it modifies or deletes data",
+            "no, it contacts the network"]}}}}},
+    logprobs=True)
+
+r.choices[0].message.content      # '{"answer": "no, it modifies or deletes data"}'
+r.usage.completion_tokens         # 0
+```
+
+**The enum is the option set**, which is why `response_format` is the right place for it: this
+model chooses among options you name rather than generating text, and structured output with an
+enum is the OpenAI feature that means the same thing. With `logprobs=True` the full distribution
+comes back in the standard shape, so a client that already reads logprobs needs to know nothing
+about this model:
+
+```
+99.7%  no, it modifies or deletes data
+ 0.2%  no, it contacts the network
+ 0.1%  yes, it only reads state
+```
+
+Two things the server deliberately does not do. A request with **no enum is refused with a 400**,
+not answered — there is no decoding loop to generate a completion with, and returning an empty one
+would let a caller believe it had an answer. And `usage.completion_tokens` is **0**, which is not
+an omission: the answer is read from a hidden state, and reporting invented token counts would
+misrepresent what the call cost. `stream=true` works and returns the answer as a single chunk,
+for the same reason.
+
+The last user message is the question; everything before it is the state. That is how a caller
+writes this anyway — context first, decision last — and it preserves the state/question split the
+model was trained on.
+
+See [`examples/openai_server.py`](examples/openai_server.py) for a runnable version.
+
 ## Where the state goes
 
 Two layouts, differing only in where the state sits:
@@ -245,7 +296,7 @@ benchmarks/          metrics, and the simulator the evaluation sets are computed
 data/                the 68 recorded questions over 17 states
 scripts/             one reproduction script per published result
 examples/            short, runnable, doing one thing each
-tests/               unit tests that need no GPU and no network
+tests/               27 tests: the wire format without weights, the rest against a real GPU
 ```
 
 ## Citing

@@ -31,7 +31,8 @@ dependencies = [
 [project.optional-dependencies]
 # Only needed to regenerate the benchmarks and compute intervals; inference needs neither.
 bench = ["numpy>=1.24"]
-dev = ["pytest>=7.4", "ruff>=0.5"]
+serve = ["fastapi>=0.110", "uvicorn>=0.27"]
+dev = ["pytest>=7.4", "ruff>=0.5", "httpx>=0.27", "openai>=1.40"]
 
 [project.urls]
 Homepage = "https://huggingface.co/flock-io/this-that-model-1.0"
