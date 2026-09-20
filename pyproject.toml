@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "thisthat"
+version = "1.0.0"
+description = "Typed decisions from a 2B model: one forward pass, no decoding, no parser."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Zehua Cheng" },
+    { name = "Wei Dai" },
+    { name = "Jiahao Sun" },
+]
+keywords = ["typed-decisions", "structured-output", "calibration", "inference", "llm"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "torch>=2.4",
+    "transformers>=4.57",
+]
+
+[project.optional-dependencies]
+# Only needed to regenerate the benchmarks and compute intervals; inference needs neither.
+bench = ["numpy>=1.24"]
+dev = ["pytest>=7.4", "ruff>=0.5"]
+
+[project.urls]
+Homepage = "https://huggingface.co/flock-io/this-that-model-1.0"
+Dataset = "https://huggingface.co/datasets/limberc/this-that-spatial-bench"
+
+[tool.setuptools.packages.find]
+include = ["thisthat*", "benchmarks*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "slow: regenerates an evaluation set from the simulator and scores it (minutes, not seconds)",
+]

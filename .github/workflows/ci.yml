@@ -1,0 +1,69 @@
+name: ci
+
+# The test suite runs the real 1.9B checkpoint on a real GPU, because the claims in this
+# repository are about what that checkpoint does and a stubbed model would only test the stub.
+# GitHub's hosted runners have no GPU, so this file splits the work honestly: linting and an
+# import check run everywhere, and the measurements run only where a GPU exists.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install ruff
+      - run: ruff check thisthat benchmarks scripts examples tests
+
+  import-and-data:
+    # No model is downloaded here. This checks the parts that do not need weights: the prompt
+    # layout, the metrics, and that the vendored data still parses and is still balanced.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e ".[bench]" --extra-index-url https://download.pytorch.org/whl/cpu
+      - name: import the package
+        run: python -c "import thisthat; print(thisthat.__version__)"
+      - name: the vendored cohort is intact
+        run: |
+          python - <<'PY'
+          import json
+          rows = [json.loads(l) for l in open("data/recorded_68.jsonl")]
+          assert len(rows) == 68, len(rows)
+          assert len({r["state"] for r in rows}) == 17
+          assert all(len(r["options"]) == 2 for r in rows)
+          assert all(r["answer_index"] in (0, 1) for r in rows)
+          assert all(r["recorded_service_p_yes"] is not None for r in rows)
+          print("68 questions over 17 states, all with a recorded service probability")
+          PY
+      - name: the simulator still computes its own truth
+        run: |
+          python - <<'PY'
+          from benchmarks.simulator.tasks import context_ladder
+          sets = context_ladder(sizes=(32,), maps_per_size=2, starts_per_map=2)
+          g, l = sets["sim_global_32"], sets["sim_local_32"]
+          assert len(g) == len(l)
+          # the two renderings must carry identical truth: that is what makes the ladder a
+          # controlled comparison rather than two different benchmarks
+          assert [i.answer_index for i in g] == [i.answer_index for i in l]
+          print(f"{len(g)} paired items, truth identical across renderings")
+          PY
+
+  gpu-tests:
+    # Enable by adding a self-hosted runner labelled `gpu`. Skipped, not faked, when absent.
+    runs-on: [self-hosted, gpu]
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -e ".[bench,dev]"
+      - run: pytest -q

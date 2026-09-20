@@ -1,0 +1,21 @@
+# Never commit credentials. No script in this repository needs any: every benchmark runs the
+# local model against data vendored here or pulled from the public Hub.
+.env
+.env.*
+*.key
+secrets.*
+
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.ruff_cache/
+runs/
+*.safetensors
+
+# the staged model card lives beside this repo, not in it
+../hf-model/

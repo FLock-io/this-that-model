@@ -1,0 +1,26 @@
+this-that-model
+===============
+
+This project is released under the MIT License (see LICENSE).
+
+Third-party code included in this repository
+--------------------------------------------
+
+benchmarks/simulator/scaled_maze.py
+benchmarks/simulator/snake_game.py
+benchmarks/simulator/game_outcomes.py
+
+    Vendored from NanoJev (https://github.com/TianyuCodings/NanoJev),
+    MIT License, Copyright (c) 2026 OpenJev contributors.
+    Import statements were adapted for this package; the simulator logic is unchanged.
+
+data/recorded_68.jsonl
+
+    Derived from the NanoJev project's published audit record
+    (results/composed_jev.json), MIT License, Copyright (c) 2026 OpenJev contributors.
+    The states, question wording and computed truths are theirs; this file rearranges
+    them into one JSON object per question and adds no new content.
+
+We thank the NanoJev authors. The hosted service probabilities recorded in that file were
+produced by a third party, not by us, and are reproduced here under the same licence so that
+the comparison in scripts/reproduce_recorded.py can be checked rather than taken on trust.
