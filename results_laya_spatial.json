@@ -1,0 +1,115 @@
+{
+ "blocked_pair": {
+  "n": 150,
+  "acc": 0.52,
+  "chance": 0.5,
+  "no_answer": 0,
+  "median_ms": 23.71397241950035
+ },
+ "cell_kind": {
+  "n": 150,
+  "acc": 0.3333333333333333,
+  "chance": 0.33333333333333387,
+  "no_answer": 0,
+  "median_ms": 23.712338879704475
+ },
+ "distance_band": {
+  "n": 150,
+  "acc": 0.25333333333333335,
+  "chance": 0.1999999999999995,
+  "no_answer": 0,
+  "median_ms": 23.724110797047615
+ },
+ "first_move": {
+  "n": 150,
+  "acc": 0.22,
+  "chance": 0.25,
+  "no_answer": 0,
+  "median_ms": 23.648468777537346
+ },
+ "goal_bearing": {
+  "n": 150,
+  "acc": 0.14,
+  "chance": 0.125,
+  "no_answer": 0,
+  "median_ms": 23.848697543144226
+ },
+ "move_legal": {
+  "n": 150,
+  "acc": 0.47333333333333333,
+  "chance": 0.5,
+  "no_answer": 0,
+  "median_ms": 23.661717772483826
+ },
+ "move_two_step": {
+  "n": 150,
+  "acc": 0.5133333333333333,
+  "chance": 0.5,
+  "no_answer": 0,
+  "median_ms": 23.6861202865839
+ },
+ "only_way": {
+  "n": 150,
+  "acc": 0.18,
+  "chance": 0.16666666666666693,
+  "no_answer": 0,
+  "median_ms": 23.809965699911118
+ },
+ "onward": {
+  "n": 150,
+  "acc": 0.44,
+  "chance": 0.5,
+  "no_answer": 0,
+  "median_ms": 23.746084421873093
+ },
+ "open_count": {
+  "n": 150,
+  "acc": 0.20666666666666667,
+  "chance": 0.1999999999999995,
+  "no_answer": 0,
+  "median_ms": 23.857174441218376
+ },
+ "plan_survives": {
+  "n": 150,
+  "acc": 0.25333333333333335,
+  "chance": 0.25,
+  "no_answer": 0,
+  "median_ms": 24.443266913294792
+ },
+ "reachable_within": {
+  "n": 150,
+  "acc": 0.5,
+  "chance": 0.5,
+  "no_answer": 0,
+  "median_ms": 23.322219029068947
+ },
+ "snake_food": {
+  "n": 150,
+  "acc": 0.14666666666666667,
+  "chance": 0.125,
+  "no_answer": 0,
+  "median_ms": 23.530077189207077
+ },
+ "snake_safe": {
+  "n": 150,
+  "acc": 0.52,
+  "chance": 0.5,
+  "no_answer": 0,
+  "median_ms": 23.378517478704453
+ },
+ "stochastic": {
+  "n": 150,
+  "acc": 0.47333333333333333,
+  "chance": 0.5,
+  "no_answer": 0,
+  "median_ms": 23.759327828884125
+ },
+ "__all": {
+  "n": 2250,
+  "acc": 0.3448888888888889,
+  "chance": 0.3433333333333333,
+  "no_answer": 0,
+  "median_ms": 23.700689896941185,
+  "p90_ms": 24.528365582227707
+ }
+}

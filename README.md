@@ -102,6 +102,7 @@ Each script prints what it measured next to what we published, and says plainly 
 | `scripts/reproduce_ladder.py` | Whole state vs. only the part the answer depends on, 32×32 → 200×200 | windowed flat at **~1.0**; whole state 0.48–0.65 |
 | `scripts/reproduce_spatial.py` | The released 7,305-question benchmark, by family and by rendering | **0.839** against a chance rate of 0.343 |
 | `scripts/measure_latency.py` | Batch-1 latency across the 68 recorded items, CUDA-synchronised, warm-up discarded | **~33 ms** on an RTX 5080 laptop GPU |
+| `scripts/bench_laya.py` | The same 2,250-question subset through [Laya](https://github.com/NandhaKishorM/laya), zero-shot | **0.345** against a chance rate of 0.343 |
 
 ```bash
 python scripts/reproduce_recorded.py
@@ -166,6 +167,7 @@ family.
 | `kimi-k3` | 7 | 0.659 | 0.750 | 0.626 | $0.52 |
 | `deepseek-v4.1-flash` | 89 | 0.512 | 0.605 | 0.478 | $0.21 |
 | `deepseek-v4-pro` | 1 | 0.425 | 0.448 | 0.417 | $0.41 |
+| `laya-typed-decisions` ‡ | **0** | 0.345 | — | — | free |
 | answering constantly | — | 0.343 | — | — | — |
 
 **Read our row with its caveat.** Every hosted system above met these fifteen question shapes for
@@ -175,6 +177,23 @@ state — so ours is an in-distribution number placed beside zero-shot ones. The
 not that a 1.88B model overtook `claude-sonnet-5`; it is that a decision shape you can generate
 training data for costs $0 and 30.9 ms per decision afterwards, and one you cannot stays where it
 was. Before that training the same model scored 0.409 here.
+
+‡ [Laya](https://github.com/NandhaKishorM/laya) is the closest published work to this one by
+construction: a non-autoregressive typed-decision engine over a 421M ModernBERT encoder, one
+forward pass, no generated text. We ran `convaiinnovations/laya:typed-decisions` ourselves on this
+exact subset, same items, same option sets, unanswered counted as wrong. It scores 0.345 against a
+chance rate of 0.343, and one family of fifteen clears chance by more than a standard error.
+
+That is a zero-shot number on a task family the checkpoint was never trained for, and its authors
+say so first: *"Laya is a fast base to specialise, not a zero-shot decision engine."* They also
+report their own base checkpoints at 0.362 and 0.342 on their typed-decision benchmark — below its
+0.461 majority-class baseline — which is the same picture. The comparison this row supports is not
+that one model is better than the other. It is that neither a 421M encoder nor our 1.88B backbone
+reads a maze without being trained to: **ours scored 0.409 here before training, which is also
+chance.** What separates the two rows is 87,651 training questions, not architecture.
+
+Laya answered every item in a median of **24 ms** against our 30.9, on a model four and a half
+times smaller. On the axis where a zero-shot comparison is meaningful, it wins.
 
 † `Jev` is the one row we did not measure: we hold no key for that endpoint and it was run for us
 on this same subset by a third party. It is the closest comparison in the table, being the only
