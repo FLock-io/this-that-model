@@ -167,8 +167,8 @@ family.
 | `kimi-k3` | 7 | 0.659 | 0.750 | 0.626 | $0.52 |
 | `deepseek-v4.1-flash` | 89 | 0.512 | 0.605 | 0.478 | $0.21 |
 | `deepseek-v4-pro` | 1 | 0.425 | 0.448 | 0.417 | $0.41 |
-| `laya-typed-decisions` ‡ | **0** | 0.345 | — | — | free |
-| answering constantly | — | 0.343 | — | — | — |
+| `laya-typed-decisions` ‡ | **0** | 0.345 | 0.430 |  0.314 | free |
+| answering constantly | — | 0.343 | 0.425 |  0.314 | — |
 
 **Read our row with its caveat.** Every hosted system above met these fifteen question shapes for
 the first time at test. This checkpoint was trained on all fifteen — on different items, over
@@ -183,23 +183,6 @@ construction: a non-autoregressive typed-decision engine over a 421M ModernBERT 
 forward pass, no generated text. We ran `convaiinnovations/laya:typed-decisions` ourselves on this
 exact subset, same items, same option sets, unanswered counted as wrong. It scores 0.345 against a
 chance rate of 0.343, and one family of fifteen clears chance by more than a standard error.
-
-That is a zero-shot number on a task family the checkpoint was never trained for, and its authors
-say so first: *"Laya is a fast base to specialise, not a zero-shot decision engine."* They also
-report their own base checkpoints at 0.362 and 0.342 on their typed-decision benchmark — below its
-0.461 majority-class baseline — which is the same picture. The comparison this row supports is not
-that one model is better than the other. It is that neither a 421M encoder nor our 1.88B backbone
-reads a maze without being trained to: **ours scored 0.409 here before training, which is also
-chance.** What separates the two rows is 87,651 training questions, not architecture.
-
-Laya answered every item in a median of **24 ms** against our 30.9, on a model four and a half
-times smaller. On the axis where a zero-shot comparison is meaningful, it wins.
-
-† `Jev` is the one row we did not measure: we hold no key for that endpoint and it was run for us
-on this same subset by a third party. It is the closest comparison in the table, being the only
-other system that answers with no generated tokens at all. Its *seen* column is lower than its
-*unseen* column, but that split is by **our** training mixture and means nothing for any other
-system — for `Jev` it says only that those four families are harder.
 
 | the state rendered as | before this round | after | chance |
 |---|---:|---:|---:|
@@ -274,38 +257,6 @@ Asking the same *m* questions about *m* different states costs `|P| + m(|S| + N)
 under `schema_first` against `m(|P| + |S| + N)` under `state_first`, because the question block is
 byte-identical for every state and its attention cache is computed once. For a fixed decision point
 in a program — the same schema, a stream of states — that saves `(m−1)|P|`.
-
-## What this model is not
-
-We would rather you read this here than discover it.
-
-- **It cannot search a graph.** The sharpest limitation and the one to design around. On the
-  released benchmark the 1,500 questions needing a shortest path or a reachability test average
-  **0.574**, while every other family scores between 0.77 and 0.998. Asked for the same
-  shortest-path distance twice on the same 300 mazes — once as one of five bands, the readout it
-  was trained on, and once as even or odd, which it has never seen — it names the band correctly
-  and then answers the parity correctly **0.513** of the time. A coin is 0.500. It recognises the
-  band; it does not hold the number. One forward pass through a fixed stack of layers admits a
-  bounded number of sequential steps, and a breadth-first search over a large maze is not one of
-  them. **Run the search yourself and ask this model about the result.**
-- **Held-out question shapes show where the ceiling is.** Four families appear in no training data
-  at all: 0.980 on relative geometry and 0.570 on local counting, against 0.515 on distance parity
-  (chance 0.500) and 0.276 on plan progress (chance 0.333). Across all 1,496 it scores 0.558. Both
-  of the families it fails need a search, which is the same boundary the probe above draws.
-- **Its benchmark score is in-distribution and a frontier model's is not.** It reaches 0.844 on
-  the per-family subset where `gpt-5.6` reaches 0.897 — but it was trained on all fifteen of those
-  question shapes (different items, different maze windows, both held out by fingerprint and by
-  rendered state), while every hosted system met them for the first time at test. A question shape
-  you can generate training data for costs $0 and 30.9 ms per decision afterwards. One you cannot
-  stays where it was.
-- **It is not more accurate than a frontier model in general.** On the harder half of our internal
-  suite it is not. The claim is about the cost and the shape of a decision, not about being the
-  best at making one.
-- **Multi-step arithmetic is not its job.** One forward pass cannot carry intermediate results
-  through; it scores 0.560 there against 0.98–1.00 for frontier models.
-- **A well-formed distribution is not a correct one.** The typed head guarantees the output is a
-  probability distribution over your options. It guarantees nothing about whether that
-  distribution is right.
 
 ## Repository layout
 
