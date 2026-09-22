@@ -193,7 +193,47 @@ chance rate of 0.343, and one family of fifteen clears chance by more than a sta
 The JSON row is why that training round happened: the model was at chance on the identical cells
 in a format it had not been trained on.
 
-## Serving it behind an OpenAI-compatible endpoint
+## Calling it over an OpenAI-compatible API
+
+The model is hosted at `https://api.flock.io/v1` and speaks the OpenAI chat-completions protocol,
+so the stock SDK reaches it with nothing but a base URL and a key:
+
+```python
+import os
+from openai import OpenAI
+
+client = OpenAI(base_url="https://api.flock.io/v1", api_key=os.environ["LITELLM_API_KEY"])
+
+response = client.chat.completions.create(
+    model="this-that-model-1.0",
+    messages=[
+        {"role": "user", "content": "value=42"},
+        {"role": "user", "content": "Is the value above ten?"},
+    ],
+    response_format={
+        "type": "json_schema",
+        "json_schema": {
+            "name": "decision",
+            "schema": {
+                "type": "object",
+                "properties": {"answer": {"enum": ["no", "yes"]}},
+                "required": ["answer"],
+            },
+        },
+    },
+)
+print(response.choices[0].message.content)   # {"answer":"yes"}
+```
+
+The last user message is the question; everything before it is the state. That is how a caller
+writes this anyway — context first, decision last — and it preserves the state/question split the
+model was trained on.
+
+Everything below about the enum, the logprobs and the refusals holds for the hosted endpoint and
+for a server you run yourself: same protocol, same weights. The two differ in the base URL and in
+the model id, which is `this-that-model-1.0` hosted and the Hub path when you serve it locally.
+
+### Serving it yourself
 
 ```bash
 pip install -e ".[serve]"
@@ -238,11 +278,9 @@ an omission: the answer is read from a hidden state, and reporting invented toke
 misrepresent what the call cost. `stream=true` works and returns the answer as a single chunk,
 for the same reason.
 
-The last user message is the question; everything before it is the state. That is how a caller
-writes this anyway — context first, decision last — and it preserves the state/question split the
-model was trained on.
-
-See [`examples/openai_server.py`](examples/openai_server.py) for a runnable version.
+See [`examples/openai_server.py`](examples/openai_server.py) for a runnable version against the
+local server; the same file reaches the hosted endpoint once the base URL, key and model id
+are swapped for the three at the top of this section.
 
 ## Where the state goes
 
