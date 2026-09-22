@@ -3,8 +3,10 @@
 **Typed decisions from a 1.9B model. One forward pass, no decoding loop, no parser, no retry.**
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![arXiv](https://img.shields.io/badge/arXiv-2609.23886-b31b1b.svg)](https://arxiv.org/abs/2609.23886)
 [![Model](https://img.shields.io/badge/%F0%9F%A4%97-model-yellow)](https://huggingface.co/flock-io/this-that-model-1.0)
 [![Dataset](https://img.shields.io/badge/%F0%9F%A4%97-benchmark-yellow)](https://huggingface.co/datasets/limberc/this-that-spatial-bench)
+[![FLock API](https://img.shields.io/badge/FLock%20API-free-brightgreen.svg)](https://platform.flock.io/models)
 
 Your program reaches a branch it cannot express in code. *Is this refund within policy? Is this
 shell command safe to run unattended? Does this output satisfy the instruction it was given?*
@@ -12,7 +14,8 @@ shell command safe to run unattended? Does this output satisfy the instruction i
 The usual answer is to call a frontier model and parse what comes back. That works, and it costs
 you a decoding loop, a per-token bill, a network hop, and a parser that has to handle the reply
 arriving as a sentence, a markdown fence, a refusal, or an empty string because a reasoning budget
-ran out. This model returns an index and a probability, in **30.9 ms**, on a card you already own.
+ran out. This model returns an index and a probability, in **30.9 ms**, on a card you already own
+— or, if you would rather not own one, [free on the FLock API](https://platform.flock.io/models).
 
 ```python
 from thisthat import TypedDecider, Question
@@ -93,7 +96,9 @@ laptop RTX 5080; the decision quality is identical because the arithmetic is.
 
 ## Reproducing the paper's numbers
 
-Each script prints what it measured next to what we published, and says plainly when they differ.
+The paper is [arXiv:2609.23886](https://arxiv.org/abs/2609.23886), and the same PDF is vendored
+here as [`paper/this-that-model.pdf`](paper/this-that-model.pdf). Each script below prints what it
+measured next to what we published, and says plainly when they differ.
 
 | Script | What it measures | Published result |
 |---|---|---|
@@ -195,8 +200,9 @@ in a format it had not been trained on.
 
 ## Calling it over an OpenAI-compatible API
 
-The model is hosted at `https://api.flock.io/v1` and speaks the OpenAI chat-completions protocol,
-so the stock SDK reaches it with nothing but a base URL and a key:
+The model is hosted on the [FLock API platform](https://platform.flock.io/models), where it is
+**free to call** — $0 per million tokens in, $0 out, which is the listed price and not an
+introductory one. Get a key there, and the stock OpenAI SDK reaches it with nothing but a base URL:
 
 ```python
 import os
@@ -232,6 +238,9 @@ model was trained on.
 Everything below about the enum, the logprobs and the refusals holds for the hosted endpoint and
 for a server you run yourself: same protocol, same weights. The two differ in the base URL and in
 the model id, which is `this-that-model-1.0` hosted and the Hub path when you serve it locally.
+The platform listing states the same constraint this README does — typed decisions only, an enum
+in `response_format` required, the last user message the question, zero completion tokens returned
+— because the hosted deployment is this server, on SGLang.
 
 ### Serving it yourself
 
@@ -311,9 +320,14 @@ tests/               27 tests: the wire format without weights, the rest against
 
 ```bibtex
 @misc{cheng2026thisthat,
-  title  = {A typed decision model that decides in 30 ms, for a millionth of a cent},
-  author = {Cheng, Zehua and Dai, Wei and Sun, Jiahao},
-  year   = {2026}
+  title         = {this-that-model-1.0: A typed decision model that decides in 30 ms,
+                   for a millionth of a cent},
+  author        = {Cheng, Zehua and Dai, Wei and Sun, Jiahao},
+  year          = {2026},
+  eprint        = {2609.23886},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.CL},
+  url           = {https://arxiv.org/abs/2609.23886}
 }
 ```
 
