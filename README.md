@@ -505,6 +505,20 @@ See [`examples/openai_server.py`](examples/openai_server.py) for a runnable vers
 local server; the same file reaches the hosted endpoint once the base URL, key and model id
 are swapped for the three at the top of this section.
 
+The same server also speaks the typed format decision benchmarks use, `POST /v1/systemone` —
+a state and named questions of type `noul`, `choice` or `score`, answered in one forward pass
+with a distribution over each question's labels:
+
+```bash
+curl -s localhost:8000/v1/systemone -d '{"state": "Order #1182. Status: shipped.",
+  "questions": {"decision": {"type": "noul", "instructions": "Has the order shipped?"}}}'
+# {"answers": {"decision": {"type": "noul", "probabilities": {"no": ..., "yes": ...}, "noul": ...}}, ...}
+```
+
+This is the wire format JevBench's `typesafe` adapter calls; see
+[`thisthat/systemone_protocol.py`](thisthat/systemone_protocol.py) for how each type's rubric
+becomes the question the model reads.
+
 ## Where the state goes
 
 Two layouts, differing only in where the state sits:

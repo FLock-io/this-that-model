@@ -32,6 +32,7 @@ from typing import Any
 
 from .model import DEFAULT_MODEL, TypedDecider
 from .openai_protocol import MAX_OPTIONS, OptionsNotDeclared, extract_options, split_messages
+from .systemone_protocol import SystemOneRequestError, parse_request, render_answer
 from .types import Question
 
 try:
@@ -112,6 +113,27 @@ def build_app(decider: TypedDecider, model_name: str):
             yield f"data: {json.dumps(chunk)}\n\n"
             yield "data: [DONE]\n\n"
         return StreamingResponse(one_chunk(), media_type="text/event-stream")
+
+    @app.post("/v1/systemone")
+    async def systemone(request: Request):
+        # the typed wire format -- see systemone_protocol. Every question named in the request is
+        # answered in the same forward pass, which is what this model does anyway.
+        try:
+            state, typed = parse_request(await request.json())
+        except (SystemOneRequestError, json.JSONDecodeError) as e:
+            return JSONResponse(status_code=400, content={"error": {
+                "message": str(e), "type": "invalid_request_error"}})
+
+        t0 = time.perf_counter()
+        decisions = decider.decide(state, [tq.question for tq in typed])
+        ms = (time.perf_counter() - t0) * 1000
+        return JSONResponse({
+            "model": model_name,
+            "answers": {tq.key: render_answer(tq, d) for tq, d in zip(typed, decisions)},
+            # nothing is generated; the prompt is not counted here rather than counted wrong
+            "usage": {"output_tokens": 0},
+            "latency_ms": round(ms, 2),
+        })
 
     return app
 
