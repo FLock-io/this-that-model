@@ -1,0 +1,10 @@
+{
+ "mlx (float16)": {
+  "accuracy": 0.9412,
+  "brier": 0.0416
+ },
+ "mps": {
+  "accuracy": 0.9412,
+  "brier": 0.0417
+ }
+}

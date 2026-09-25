@@ -1,0 +1,23 @@
+{
+  "model": "flock-io/this-that-model-1.1",
+  "data": "spatial",
+  "n_items": 450,
+  "reference": "mlx (float16)",
+  "backends": {
+    "mps": {
+      "accuracy": 0.8911111111111111,
+      "max_abs_prob_diff": 0.03760104754060278,
+      "mean_abs_prob_diff": 0.0013152597831081177,
+      "p99_abs_prob_diff": 0.014837904245963074,
+      "argmax_disagreements": 1,
+      "disagreements": [
+        {
+          "item": 350,
+          "ref_confidence": 0.5016186280402325,
+          "got_confidence": 0.5016144425176551
+        }
+      ]
+    }
+  },
+  "reference_accuracy": 0.8888888888888888
+}

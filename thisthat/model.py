@@ -10,19 +10,26 @@ label token, and normalises over exactly those options:
 The support of that distribution is the option list.  A malformed answer is therefore not
 improbable, it is outside the sample space -- there is no token budget to exhaust, no letter to
 mis-parse, and no retry path to write.
+
+Which framework computes the inner product is not part of that claim, and lives in `backends/`.
+This file owns the parts that decide what the published numbers are: how a prompt is batched,
+what temperature does, and how logits become a distribution.  Those exist once and both backends
+share them, so the two cannot drift apart in the arithmetic that callers actually read.
 """
 from __future__ import annotations
 
 import time
 from typing import Iterable, Sequence
 
-import torch
-import torch.nn.functional as F
+import numpy as np
 
-from .prompt import DEFAULT_MAX_STATE_TOKENS, build, option_label_ids
-from .types import MAX_OPTIONS, Decision, Question
+from .backends import best_device, load_backend
+from .prompt import DEFAULT_MAX_STATE_TOKENS, build
+from .types import Decision, Question
 
 DEFAULT_MODEL = "flock-io/this-that-model-1.0"
+
+__all__ = ["DEFAULT_MODEL", "TypedDecider", "best_device"]
 
 
 def _pad_to(n: int, multiple: int = 64) -> int:
@@ -30,35 +37,17 @@ def _pad_to(n: int, multiple: int = 64) -> int:
     return ((n + multiple - 1) // multiple) * multiple
 
 
-def _mps_available() -> bool:
-    return getattr(torch.backends, "mps", None) is not None and torch.backends.mps.is_available()
+def _softmax(logits: np.ndarray, temperature: float) -> np.ndarray:
+    """Row-wise softmax in float32, with -inf rows entries meaning "not an option here".
 
-
-def best_device() -> str:
-    """CUDA, else Apple Silicon, else CPU."""
-    if torch.cuda.is_available():
-        return "cuda"
-    if _mps_available():
-        return "mps"
-    return "cpu"
-
-
-def _default_dtype(device: str) -> torch.dtype:
-    """bfloat16 where it is fast, float16 on Apple Silicon, float32 on CPU.
-
-    bfloat16 matmul on CPU is slow and on some builds unsupported. On MPS, float16 is the type
-    Metal is built around; bfloat16 works on recent PyTorch but silently falls back for several
-    ops, which costs more than the extra exponent range is worth for a 1.9B model doing one pass.
+    float32 rather than the model's dtype: in half precision a masked row can underflow to all
+    zeros, and a row of zeros renormalises into nonsense instead of failing.  Every row has at
+    least two finite entries, so the row max is always finite and the shift is always safe.
     """
-    return {"cuda": torch.bfloat16, "mps": torch.float16}.get(device, torch.float32)
-
-
-def _synchronize(device: torch.device) -> None:
-    """Make an asynchronous backend finish, so a timer measures work rather than submission."""
-    if device.type == "cuda":
-        torch.cuda.synchronize()
-    elif device.type == "mps":
-        torch.mps.synchronize()
+    z = logits.astype(np.float32) / temperature
+    z = z - z.max(axis=-1, keepdims=True)
+    e = np.exp(z)
+    return e / e.sum(axis=-1, keepdims=True)
 
 
 class TypedDecider:
@@ -68,47 +57,32 @@ class TypedDecider:
         decider.decide("temp=91C, fan=off", Question("Throttle?", ["no", "yes"]))
     """
 
-    def __init__(self, model, tokenizer, device: str | torch.device | None = None):
-        self.model = model
-        self.tokenizer = tokenizer
-        self.device = torch.device(device) if device is not None \
-            else next(model.parameters()).device
-        self._labels = torch.tensor(option_label_ids(tokenizer), device=self.device)
+    def __init__(self, backend):
+        self.backend = backend
+        self.tokenizer = backend.tokenizer
 
     # ------------------------------------------------------------------ loading
     @classmethod
     def from_pretrained(cls, name_or_path: str = DEFAULT_MODEL, *, device: str = "auto",
-                        dtype: str | torch.dtype | None = None, **kw) -> "TypedDecider":
-        """Load the model. `device` may be "auto" (the default), "cuda", "mps" or "cpu".
+                        **kw) -> TypedDecider:
+        """Load the model.
 
-        `dtype` defaults to whatever suits the device; pass one explicitly to override.
+        `device` may be "auto" (the default), "mlx", "cuda", "mps" or "cpu".  On Apple Silicon
+        with mlx-lm installed, "auto" means "mlx"; the MLX backend reads the published bf16
+        checkpoint directly, so there is no conversion step and no separate repository.
+
+        Remaining keyword arguments go to the backend -- `dtype=` to the torch one, for instance.
         """
-        from transformers import AutoModelForCausalLM, AutoTokenizer
+        return cls(load_backend(name_or_path, device=device, **kw))
 
-        if device == "auto":
-            device = best_device()
-        if dtype is None:
-            dtype = _default_dtype(device)
-        elif isinstance(dtype, str):
-            dtype = getattr(torch, dtype)
-        if device == "cpu" and dtype is torch.bfloat16:
-            dtype = torch.float32          # bf16 matmul on CPU is slow and often unsupported
-        tok = AutoTokenizer.from_pretrained(name_or_path)
-        model = AutoModelForCausalLM.from_pretrained(name_or_path, dtype=dtype, **kw)
-        model.to(device).eval()
-        return cls(model, tok, device=device)
+    @property
+    def device(self):
+        """Where the forward pass runs, as a string: "cuda", "mps", "mlx (bfloat16)", ..."""
+        return self.backend.device
 
-    # ------------------------------------------------------------------ the head
-    @torch.no_grad()
-    def _slot_logits(self, input_ids, attention_mask, slot_idx, slot_batch, n_options):
-        """-> [N, MAX_OPTIONS] with options past each question's count masked to -inf."""
-        hidden = self.model.model(input_ids=input_ids,
-                                  attention_mask=attention_mask).last_hidden_state
-        h = hidden[slot_batch, slot_idx]                       # [N, H] one vector per answer
-        w = self.model.lm_head.weight[self._labels]            # [MAX_OPTIONS, H]
-        logits = F.linear(h, w).float()
-        past = torch.arange(MAX_OPTIONS, device=logits.device)[None, :] >= n_options[:, None]
-        return logits.masked_fill(past, float("-inf"))
+    @property
+    def model(self):
+        return self.backend.model
 
     # ------------------------------------------------------------------ public API
     def decide(self, state: str, questions: Question | Sequence[Question], *,
@@ -138,34 +112,29 @@ class TypedDecider:
         # sort by length so a batch is not mostly padding, then restore the caller's order
         order = sorted(range(len(built)), key=lambda i: len(built[i]["ids"]))
         results: list[list[Decision] | None] = [None] * len(built)
-        pad_id = self.tokenizer.pad_token_id
-        if pad_id is None:
-            pad_id = self.tokenizer.eos_token_id or 0
+        pad_id = self.backend.pad_id
 
         for start in range(0, len(order), batch_size):
             chunk = order[start:start + batch_size]
             width = _pad_to(max(len(built[i]["ids"]) for i in chunk))
-            input_ids = torch.full((len(chunk), width), pad_id, dtype=torch.long)
-            attn = torch.zeros((len(chunk), width), dtype=torch.long)
+            # right padding: a causal model cannot see past the end of its own row, so the pads
+            # change nothing about the real tokens and every real position keeps its index
+            ids = np.full((len(chunk), width), pad_id, dtype=np.int64)
+            attn = np.zeros((len(chunk), width), dtype=np.int64)
             slot_idx, slot_batch, n_opt, owner = [], [], [], []
             for b, i in enumerate(chunk):
-                ids = built[i]["ids"]
-                input_ids[b, :len(ids)] = torch.tensor(ids)
-                attn[b, :len(ids)] = 1
+                row = built[i]["ids"]
+                ids[b, :len(row)] = row
+                attn[b, :len(row)] = 1
                 for k, s in enumerate(built[i]["slots"]):
                     slot_idx.append(s); slot_batch.append(b)
                     n_opt.append(built[i]["n_options"][k]); owner.append((i, k))
-            dev = self.device
-            logits = self._slot_logits(input_ids.to(dev), attn.to(dev),
-                                       torch.tensor(slot_idx, device=dev),
-                                       torch.tensor(slot_batch, device=dev),
-                                       torch.tensor(n_opt, device=dev))
-            # float32 for the softmax: on MPS a float16 softmax over a masked row can underflow
-            # to zeros, and a distribution of zeros renormalises into nonsense rather than failing
-            probs = torch.softmax(logits.float() / temperature, dim=-1).cpu().numpy()
-            for row, (i, k) in enumerate(owner):
+            logits = self.backend.slot_logits(ids, attn, np.array(slot_idx), np.array(slot_batch),
+                                              np.array(n_opt))
+            probs = _softmax(logits, temperature)
+            for row_i, (i, k) in enumerate(owner):
                 q = items[i][1][k]
-                p = [float(x) for x in probs[row][:len(q.options)]]
+                p = [float(x) for x in probs[row_i][:len(q.options)]]
                 total = sum(p) or 1.0
                 p = tuple(x / total for x in p)
                 d = Decision(question=q.text, options=tuple(q.options),
@@ -207,10 +176,10 @@ class TypedDecider:
         samples = []
         for i in range(repeats):
             s, q = items[i % len(items)]
-            _synchronize(self.device)
+            self.backend.synchronize()
             t0 = time.perf_counter()
             self.decide(s, q)
-            _synchronize(self.device)
+            self.backend.synchronize()
             samples.append((time.perf_counter() - t0) * 1000)
         samples.sort()
         n = len(samples)
@@ -219,4 +188,5 @@ class TypedDecider:
         return {"mean_ms": mean, "sd_ms": var ** 0.5, "p50_ms": samples[n // 2],
                 "p90_ms": samples[int(0.90 * n)], "p99_ms": samples[min(int(0.99 * n), n - 1)],
                 "n": n, "distinct_items": len(items),
+                "backend": self.backend.name, "device": self.device,
                 "questions_per_pass": len(items[0][1])}

@@ -128,7 +128,10 @@ def main() -> int:
     import uvicorn
     print(f"loading {a.model} ...", flush=True)
     decider = TypedDecider.from_pretrained(a.model, device=a.device)
-    print(f"ready on {a.device}; POST http://{a.host}:{a.port}/v1/chat/completions", flush=True)
+    # the resolved device, not the argument: "auto" can mean mlx, cuda or mps, and a
+    # server log that says "auto" tells the person reading it nothing
+    print(f"ready on {decider.device}; POST http://{a.host}:{a.port}/v1/chat/completions",
+          flush=True)
     uvicorn.run(build_app(decider, a.model), host=a.host, port=a.port, log_level="warning")
     return 0
 

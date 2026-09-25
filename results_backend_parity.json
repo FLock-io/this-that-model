@@ -1,0 +1,35 @@
+{
+  "model": "flock-io/this-that-model-1.1",
+  "n_items": 68,
+  "reference": "cpu",
+  "backends": {
+    "mlx (float16)": {
+      "max_abs_prob_diff": 0.007087358835309671,
+      "mean_abs_prob_diff": 0.0004582742517390438,
+      "p99_abs_prob_diff": 0.0057454394476558505,
+      "argmax_disagreements": 0,
+      "disagreements": []
+    },
+    "mlx (bfloat16)": {
+      "max_abs_prob_diff": 0.02380762561049299,
+      "mean_abs_prob_diff": 0.0013551777933234188,
+      "p99_abs_prob_diff": 0.01930363942438775,
+      "argmax_disagreements": 0,
+      "disagreements": []
+    },
+    "mlx (float32)": {
+      "max_abs_prob_diff": 0.005505341770001948,
+      "mean_abs_prob_diff": 0.0004061460284548895,
+      "p99_abs_prob_diff": 0.004757675525619454,
+      "argmax_disagreements": 0,
+      "disagreements": []
+    },
+    "mps": {
+      "max_abs_prob_diff": 0.003962247990671575,
+      "mean_abs_prob_diff": 0.00014176376100596204,
+      "p99_abs_prob_diff": 0.002485467935564146,
+      "argmax_disagreements": 0,
+      "disagreements": []
+    }
+  }
+}

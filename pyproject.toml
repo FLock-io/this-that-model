@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "thisthat"
-version = "1.0.0"
+version = "1.2.0"
 description = "Typed decisions from a 2B model: one forward pass, no decoding, no parser."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -23,19 +23,28 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
+# The backbone runs on PyTorch everywhere and on MLX on Apple Silicon, and the marker picks one
+# rather than making the caller pick: a CUDA box installs exactly what it did before, and a Mac
+# stops downloading two gigabytes of PyTorch it was only ever going to use as a fallback. Either
+# extra below forces the other backend in alongside; `thisthat.backends` names the command to run
+# if a device is asked for that nothing is installed for.
 dependencies = [
-    "torch>=2.4",
     "transformers>=4.57",
+    "numpy>=1.24",
+    "torch>=2.4; sys_platform != 'darwin' or platform_machine != 'arm64'",
+    "mlx-lm>=0.31.3; sys_platform == 'darwin' and platform_machine == 'arm64'",
 ]
 
 [project.optional-dependencies]
-# Only needed to regenerate the benchmarks and compute intervals; inference needs neither.
+torch = ["torch>=2.4"]
+mlx = ["mlx-lm>=0.31.3"]
 bench = ["numpy>=1.24"]
 serve = ["fastapi>=0.110", "uvicorn>=0.27"]
-dev = ["pytest>=7.4", "ruff>=0.5", "httpx>=0.27", "openai>=1.40"]
+# the parity test compares the two backends, so a dev install wants both of them
+dev = ["pytest>=7.4", "ruff>=0.5", "httpx>=0.27", "openai>=1.40", "torch>=2.4"]
 
 [project.urls]
-Homepage = "https://huggingface.co/flock-io/this-that-model-1.0"
+Homepage = "https://huggingface.co/flock-io/this-that-model-1.2"
 Dataset = "https://huggingface.co/datasets/limberc/this-that-spatial-bench"
 
 [tool.setuptools.packages.find]
